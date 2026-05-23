@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sales & Revenue Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #080f1a;
+    --card: #0d1b2e;
+    --card2: #0a1628;
+    --border: rgba(0,255,180,0.12);
+    --accent: #00ffb3;
+    --accent2: #00c8ff;
+    --warn: #ff6b6b;
+    --muted: #4a6a8a;
+    --text: #d0e8ff;
+    --white: #f0faff;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse at 10% 20%, rgba(0,255,180,0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 90% 80%, rgba(0,200,255,0.04) 0%, transparent 50%);
+  }
+  /* HEADER */
+  header {
+    padding: 28px 32px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .logo { display:flex; align-items:center; gap:12px; }
+  .logo-icon {
+    width:40px; height:40px; border-radius:10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px;
+  }
+  h1 { font-size:22px; font-weight:800; color:var(--white); letter-spacing:-0.5px; }
+  h1 span { color: var(--accent); }
+  .sub { font-size:12px; color:var(--muted); font-family:'DM Mono',monospace; margin-top:2px; }
+  .header-right { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .badge {
+    font-family:'DM Mono',monospace; font-size:11px;
+    background: rgba(0,255,180,0.08); border:1px solid var(--border);
+    color:var(--accent); padding:5px 12px; border-radius:20px;
+  }
+  .import-btn {
+    background: linear-gradient(135deg, var(--accent), #00d490);
+    border:none; border-radius:8px; padding:9px 18px;
+    color:#000; font-weight:700; cursor:pointer; font-size:13px;
+    font-family:'Syne',sans-serif; transition:transform 0.15s, box-shadow 0.15s;
+  }
+  .import-btn:hover { transform:translateY(-1px); box-shadow:0 4px 20px rgba(0,255,180,0.3); }
+  #fileInput { display:none; }
+  #fileName { font-size:11px; color:var(--accent); font-family:'DM Mono',monospace; }
+
+  /* MAIN */
+  main { padding: 28px 32px; max-width:1400px; margin:0 auto; }
+
+  /* KPI CARDS */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeUp 0.5s ease both;
+  }
+  .kpi-card::before {
+    content:'';
+    position:absolute; top:0; left:0; right:0; height:2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+  .kpi-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; font-family:'DM Mono',monospace; }
+  .kpi-value { font-size:24px; font-weight:800; color:var(--white); margin-bottom:8px; }
+  .kpi-change { font-size:12px; font-weight:600; font-family:'DM Mono',monospace; }
+  .up { color: var(--accent); }
+  .down { color: var(--warn); }
+
+  /* TABS */
+  .tabs { display:flex; gap:6px; margin-bottom:20px; }
+  .tab {
+    padding:8px 20px; border-radius:8px; border:1px solid transparent;
+    cursor:pointer; font-size:13px; font-weight:600; font-family:'Syne',sans-serif;
+    transition:all 0.2s; color:var(--muted); background:transparent;
+  }
+  .tab.active {
+    background: rgba(0,255,180,0.1);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .tab:hover:not(.active) { color:var(--text); border-color:var(--border); }
+
+  /* FILTER */
+  .filters { display:flex; gap:8px; margin-bottom:20px; align-items:center; }
+  .filter-label { font-size:12px; color:var(--muted); font-family:'DM Mono',monospace; }
+  .filter-btn {
+    padding:5px 14px; border-radius:6px; border:1px solid var(--border);
+    background:transparent; color:var(--muted); cursor:pointer;
+    font-size:12px; font-weight:600; font-family:'Syne',sans-serif; transition:all 0.2s;
+  }
+  .filter-btn.active { background:rgba(0,255,180,0.1); border-color:var(--accent); color:var(--accent); }
+
+  /* PANELS */
+  .panel { display:none; }
+  .panel.active { display:block; animation: fadeUp 0.4s ease; }
+
+  /* CHARTS GRID */
+  .charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .chart-card {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:14px; padding:22px;
+  }
+  .chart-title { font-size:13px; font-weight:700; color:var(--accent); margin-bottom:18px; display:flex; align-items:center; gap:8px; }
+  canvas { max-height:230px; }
+
+  /* PRODUCTS */
+  .product-item {
+    display:flex; align-items:center; gap:14px;
+    padding:16px 0; border-bottom:1px solid var(--border);
+  }
+  .product-item:last-child { border-bottom:none; }
+  .rank { font-size:20px; min-width:32px; }
+  .product-info { flex:1; }
+  .product-name { font-size:14px; font-weight:700; color:var(--white); margin-bottom:7px; }
+  .product-bar-bg { background:rgba(255,255,255,0.06); border-radius:4px; height:6px; }
+  .product-bar { height:6px; border-radius:4px; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width 0.8s ease; }
+  .product-sales { font-size:12px; color:var(--muted); font-family:'DM Mono',monospace; min-width:90px; text-align:right; }
+  .product-growth { font-size:12px; font-weight:700; font-family:'DM Mono',monospace; min-width:60px; text-align:right; }
+
+  /* CATEGORY TABLE */
+  .cat-table { width:100%; border-collapse:collapse; }
+  .cat-table th { font-size:11px; color:var(--muted); text-align:left; padding:0 0 12px; text-transform:uppercase; letter-spacing:1px; font-family:'DM Mono',monospace; }
+  .cat-table td { padding:10px 0; border-top:1px solid var(--border); font-size:13px; }
+  .cat-dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:8px; }
+  .cat-bar-bg { background:rgba(255,255,255,0.06); border-radius:4px; height:6px; width:120px; display:inline-block; vertical-align:middle; }
+  .cat-bar-fill { height:6px; border-radius:4px; display:block; }
+
+  /* FOOTER */
+  footer { text-align:center; padding:24px; font-size:11px; color:var(--muted); font-family:'DM Mono',monospace; border-top:1px solid var(--border); margin-top:10px; }
+
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(16px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+
+  @media(max-width:768px) {
+    main { padding:16px; }
+    header { padding:16px; }
+    .kpi-grid { grid-template-columns:repeat(2,1fr); }
+    .charts-grid { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">📊</div>
+    <div>
+      <h1>Sales <span>&</span> Revenue</h1>
+      <div class="sub">Analysis Dashboard • FY 2025–26</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="badge">● LIVE</span>
+    <button class="import-btn" onclick="document.getElementById('fileInput').click()">📥 Import Data</button>
+    <input type="file" id="fileInput" accept=".csv,.xlsx" onchange="handleImport(this)"/>
+    <span id="fileName"></span>
+  </div>
+</header>
+
+<main>
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card" style="animation-delay:0.05s">
+      <div class="kpi-label">Total Sales</div>
+      <div class="kpi-value">₹8,18,000</div>
+      <div class="kpi-change up">▲ +18.4% vs last year</div>
+    </div>
+    <div class="kpi-card" style="animation-delay:0.1s">
+      <div class="kpi-label">Total Revenue</div>
+      <div class="kpi-value">₹7,43,000</div>
+      <div class="kpi-change up">▲ +16.2% vs last year</div>
+    </div>
+    <div class="kpi-card" style="animation-delay:0.15s">
+      <div class="kpi-label">Avg Order Value</div>
+      <div class="kpi-value">₹2,340</div>
+      <div class="kpi-change up">▲ +4.7% vs last year</div>
+    </div>
+    <div class="kpi-card" style="animation-delay:0.2s">
+      <div class="kpi-label">Returns Rate</div>
+      <div class="kpi-value">3.2%</div>
+      <div class="kpi-change down">▼ -0.8% vs last year</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('overview',this)">📈 Overview</button>
+    <button class="tab" onclick="switchTab('products',this)">🏆 Products</button>
+    <button class="tab" onclick="switchTab('categories',this)">🥧 Categories</button>
+  </div>
+
+  <!-- OVERVIEW PANEL -->
+  <div class="panel active" id="overview">
+    <div class="filters">
+      <span class="filter-label">Filter:</span>
+      <button class="filter-btn active" onclick="filterData('all',this)">All</button>
+      <button class="filter-btn" onclick="filterData('q1',this)">Q1</button>
+      <button class="filter-btn" onclick="filterData('q2',this)">Q2</button>
+      <button class="filter-btn" onclick="filterData('q3',this)">Q3</button>
+      <button class="filter-btn" onclick="filterData('q4',this)">Q4</button>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">📈 Revenue Trend</div>
+        <canvas id="lineChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">📊 Sales vs Revenue</div>
+        <canvas id="barChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRODUCTS PANEL -->
+  <div class="panel" id="products">
+    <div class="chart-card">
+      <div class="chart-title">🏆 Top Performing Products</div>
+      <div id="productList"></div>
+    </div>
+  </div>
+
+  <!-- CATEGORIES PANEL -->
+  <div class="panel" id="categories">
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">🥧 Sales by Category</div>
+        <canvas id="pieChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">📋 Category Breakdown</div>
+        <table class="cat-table">
+          <thead><tr><th>Category</th><th>Share</th><th>Bar</th></tr></thead>
+          <tbody id="catTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>Sales & Revenue Analysis Dashboard &nbsp;|&nbsp; Arivazhagan • 25AD162 • SKCET &nbsp;|&nbsp; AI & Data Science 2025–26</footer>
+
+<script>
+const allData = {
+  labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+  sales:   [42000,53000,48000,61000,55000,67000,72000,69000,78000,84000,91000,98000],
+  revenue: [38000,47000,43000,55000,50000,61000,66000,63000,71000,77000,83000,90000],
+  target:  [40000,45000,45000,50000,52000,55000,60000,62000,65000,70000,75000,80000],
+};
+const qRanges = { all:[0,12], q1:[0,3], q2:[3,6], q3:[6,9], q4:[9,12] };
+
+const chartDefaults = {
+  plugins:{ legend:{ labels:{ color:'#4a6a8a', font:{ family:'DM Mono' }, boxWidth:12 }}},
+  scales:{
+    x:{ ticks:{ color:'#4a6a8a', font:{size:11} }, grid:{ color:'rgba(255,255,255,0.04)' }},
+    y:{ ticks:{ color:'#4a6a8a', font:{size:11} }, grid:{ color:'rgba(255,255,255,0.04)' }},
+  }
+};
+
+let lineChart, barChart;
+
+function buildCharts(range='all') {
+  const [s,e] = qRanges[range];
+  const labels  = allData.labels.slice(s,e);
+  const sales   = allData.sales.slice(s,e);
+  const revenue = allData.revenue.slice(s,e);
+  const target  = allData.target.slice(s,e);
+
+  // LINE
+  if(lineChart) lineChart.destroy();
+  lineChart = new Chart(document.getElementById('lineChart'), {
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        { label:'Sales', data:sales, borderColor:'#00ffb3', backgroundColor:'rgba(0,255,180,0.08)', tension:0.4, pointRadius:3, borderWidth:2 },
+        { label:'Revenue', data:revenue, borderColor:'#00c8ff', backgroundColor:'rgba(0,200,255,0.08)', tension:0.4, pointRadius:3, borderWidth:2 },
+        { label:'Target', data:target, borderColor:'#f59e0b', borderDash:[5,5], backgroundColor:'transparent', tension:0.4, pointRadius:0, borderWidth:2 },
+      ]
+    },
+    options:{ ...chartDefaults, responsive:true, maintainAspectRatio:true }
+  });
+
+  // BAR
+  if(barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('barChart'), {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        { label:'Sales', data:sales, backgroundColor:'rgba(0,255,180,0.7)', borderRadius:5 },
+        { label:'Revenue', data:revenue, backgroundColor:'rgba(0,200,255,0.7)', borderRadius:5 },
+      ]
+    },
+    options:{ ...chartDefaults, responsive:true, maintainAspectRatio:true }
+  });
+}
+
+// PIE CHART
+const catData = [
+  { name:'Electronics', value:35, color:'#00ffb3' },
+  { name:'Clothing',    value:25, color:'#00c8ff' },
+  { name:'Food',        value:20, color:'#a78bfa' },
+  { name:'Books',       value:12, color:'#fb923c' },
+  { name:'Others',      value:8,  color:'#f43f5e' },
+];
+new Chart(document.getElementById('pieChart'), {
+  type:'doughnut',
+  data:{
+    labels: catData.map(c=>c.name),
+    datasets:[{ data: catData.map(c=>c.value), backgroundColor: catData.map(c=>c.color), borderWidth:0, hoverOffset:8 }]
+  },
+  options:{
+    responsive:true,
+    plugins:{ legend:{ position:'bottom', labels:{ color:'#4a6a8a', font:{family:'DM Mono'}, boxWidth:12, padding:14 }}}
+  }
+});
+
+// CATEGORY TABLE
+const tb = document.getElementById('catTable');
+catData.forEach(c=>{
+  tb.innerHTML += `<tr>
+    <td><span class="cat-dot" style="background:${c.color}"></span>${c.name}</td>
+    <td style="color:${c.color};font-family:'DM Mono',monospace;font-weight:600">${c.value}%</td>
+    <td><span class="cat-bar-bg"><span class="cat-bar-fill" style="width:${c.value*3}px;background:${c.color}"></span></span></td>
+  </tr>`;
+});
+
+// PRODUCTS
+const products = [
+  { name:'Product A', sales:34200, pct:100, growth:12.4 },
+  { name:'Product B', sales:28900, pct:84,  growth:8.1  },
+  { name:'Product C', sales:22100, pct:65,  growth:-3.2 },
+  { name:'Product D', sales:18700, pct:55,  growth:21.6 },
+  { name:'Product E', sales:14300, pct:42,  growth:5.9  },
+];
+const ranks = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+const pl = document.getElementById('productList');
+products.forEach((p,i)=>{
+  pl.innerHTML += `
+  <div class="product-item">
+    <span class="rank">${ranks[i]}</span>
+    <div class="product-info">
+      <div class="product-name">${p.name}</div>
+      <div class="product-bar-bg"><div class="product-bar" style="width:${p.pct}%"></div></div>
+    </div>
+    <span class="product-sales">₹${p.sales.toLocaleString('en-IN')}</span>
+    <span class="product-growth ${p.growth>0?'up':'down'}">${p.growth>0?'▲':'▼'} ${Math.abs(p.growth)}%</span>
+  </div>`;
+});
+
+// TAB SWITCH
+function switchTab(id, el) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  el.classList.add('active');
+}
+
+// FILTER
+function filterData(range, el) {
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  buildCharts(range);
+}
+
+// IMPORT
+function handleImport(input) {
+  const f = input.files[0];
+  if(f) document.getElementById('fileName').textContent = '✓ ' + f.name;
+}
+
+// INIT
+buildCharts();
+</script>
+</body>
+</html>
